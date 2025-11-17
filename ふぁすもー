@@ -1,0 +1,409 @@
+const GHOSTS = [
+  {
+    id: "spirit",
+    name: "Spirit",
+    evidences: ["EMF Lv5", "スピボ", "ゴーストライティング"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。スマッジ後180秒はハント不可。" },
+    speeds: { base: "~1.7 m/s", detail: "速度・挙動ともに基準ゴースト。" },
+    abilities: [
+      "固有能力ほぼなし。挙動は“基準”として比較に使う。"
+    ],
+    tests: [
+      "スマッジ後に180秒以上ハントが来ない → Spirit濃厚（他は90秒前後）。"
+    ],
+    tags: ["標準", "スマッジ延長"]
+  },
+  {
+    id: "wraith",
+    name: "Wraith",
+    evidences: ["EMF Lv5", "スピボ", "DOTS"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。" },
+    speeds: { base: "~1.7 m/s", detail: "速度は標準。テレポート挙動あり。" },
+    abilities: [
+      "ランダムにプレイヤーへテレポートして干渉。",
+      "塩を踏んでも足跡（UV）が出ない。"
+    ],
+    tests: [
+      "塩を踏んだのにUVで足跡が出ない → Wraith確定。",
+      "不自然に離れた場所でEMFや足音が出る → テレポート挙動を疑う。"
+    ],
+    tags: ["テレポート", "塩NG", "標準"]
+  },
+  {
+    id: "phantom",
+    name: "Phantom",
+    evidences: ["スピボ", "DOTS", "指紋"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "イベントでSAN大きめに削る。" },
+    speeds: { base: "~1.7 m/s", detail: "ハント中の点滅が遅く、姿が見えにくい。" },
+    abilities: [
+      "写真を撮るとモデルが一時的に消える。",
+      "ゴーストイベント1回でSAN -10%。"
+    ],
+    tests: [
+      "イベント中に写真を撮って姿だけ消える（干渉は残る）→ Phantom候補。",
+      "ハント中の点滅間隔が長く、姿がほぼ見えない。"
+    ],
+    tags: ["写真消失", "SAN大ダメ", "視認性低"]
+  },
+  {
+    id: "poltergeist",
+    name: "Poltergeist",
+    evidences: ["スピボ", "ゴーストライティング", "指紋"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。投擲特化。" },
+    abilities: [
+      "一度に複数の物を投げる“マルチスロー”。",
+      "物投げ時にSANを比較的大きく削る。"
+    ],
+    tests: [
+      "物が一気に複数飛ぶ → Polter本命。",
+      "アイテム部屋を作って投げ方を観察する。"
+    ],
+    tags: ["投擲多い", "SANダメ", "標準"]
+  },
+  {
+    id: "banshee",
+    name: "Banshee",
+    evidences: ["DOTS", "指紋", "ゴーストオーブ"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "ターゲット1人基準で判定。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。ターゲット追尾型。" },
+    abilities: [
+      "ターゲットを1人決めて、そのプレイヤーを優先して狙う。",
+      "パラボラで“悲鳴”の特殊音を出す。"
+    ],
+    tests: [
+      "ターゲット以外の近くを素通りするハント → Banshee候補。",
+      "パラボラで悲鳴SEが出たらBansheeほぼ確。"
+    ],
+    tags: ["単体ターゲット", "パラボラ悲鳴"]
+  },
+  {
+    id: "jinn",
+    name: "Jinn",
+    evidences: ["EMF Lv5", "氷点下温度", "指紋"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。ブレーカーON時のみ加速。" },
+    speeds: { base: "2.5 m/s(遠距離)", detail: "ブレーカーONかつ遠距離で加速。接近すると減速。" },
+    abilities: [
+      "ブレーカーONで、遠距離かつ視認しているときに加速。",
+      "基本的にブレーカーを落としにくい傾向。"
+    ],
+    tests: [
+      "ブレーカーONで距離を取ると明らかに速い → Jinn候補。",
+      "ブレーカーを落とすと速度が普通になるか確認。"
+    ],
+    tags: ["遠距離加速", "ブレーカー依存"]
+  },
+  {
+    id: "mare",
+    name: "Mare",
+    evidences: ["スピボ", "ゴーストライティング", "ゴーストオーブ"],
+    forcedEvidences: [],
+    huntSanity: { base: 60, note: "暗所60% / 明所40%でハント開始。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。暗闇で凶暴。" },
+    abilities: [
+      "暗所で早ハント（平均SAN60%）。",
+      "電気を消しがち。明るい部屋では活動控えめ。"
+    ],
+    tests: [
+      "ライトONでローム・干渉が減る＆ハントが遅くなる → Mare寄り。",
+      "わざと明かりを増やして様子を見る。"
+    ],
+    tags: ["暗闇強化", "早ハント", "ライト嫌い"]
+  },
+  {
+    id: "revenant",
+    name: "Revenant",
+    evidences: ["ゴーストライティング", "氷点下温度", "ゴーストオーブ"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。" },
+    speeds: { base: "3.0 / 1.0 m/s", detail: "視認中は爆速、見失うと超鈍足。" },
+    abilities: [
+      "ターゲットを視認している間は非常に速い。",
+      "視認していないときは極端に遅くなる。"
+    ],
+    tests: [
+      "ハント中、直線で追われると異常に速いが、隠れると足音が極端に遅くなる → Rev濃厚。"
+    ],
+    tags: ["LOS爆速", "非LOS激遅"]
+  },
+  {
+    id: "demon",
+    name: "Demon",
+    evidences: ["ゴーストライティング", "氷点下温度", "指紋"],
+    forcedEvidences: [],
+    huntSanity: { base: 70, note: "最速クラスの早ハント。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。頻繁にハントを仕掛ける。" },
+    abilities: [
+      "平均SAN70%付近からハント可能。",
+      "スマッジから再ハントまでの待機が短い。クルシフィックスも燃えやすい。"
+    ],
+    tests: [
+      "高SAN帯で何度もハント → Demon本命。",
+      "クルシフィックスが広範囲で早く消費されるかを見る。"
+    ],
+    tags: ["超早ハント", "クルシ消費増"]
+  },
+  {
+    id: "yurei",
+    name: "Yurei",
+    evidences: ["氷点下温度", "ゴーストオーブ", "DOTS"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。ドア叩きでSANを多めに削る。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。ドアslamイベント特化。" },
+    abilities: [
+      "ドアを強く閉めるイベント時にSANを多く削る。",
+      "スマッジで一時的に部屋に“閉じ込め”できる。"
+    ],
+    tests: [
+      "ドアバンでSANが大きく落ちるならYurei候補。",
+      "スマッジ後しばらくロームが減るか確認。"
+    ],
+    tags: ["ドアSAN削り", "ローム制限"]
+  },
+  {
+    id: "oni",
+    name: "Oni",
+    evidences: ["EMF Lv5", "氷点下温度", "DOTS"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。活動量が多いゴリラ枠。" },
+    speeds: { base: "~1.8 m/s", detail: "やや速め。イベント頻度が高い。" },
+    abilities: [
+      "イベント頻度が高く、姿を見せることが多い。",
+      "エアボール（白玉）ゴーストイベントをしない。"
+    ],
+    tests: [
+      "やたら出てくる・物もよく動く・エアボールが一切ない → Oni濃厚。"
+    ],
+    tags: ["高活動", "エアボール無し"]
+  },
+  {
+    id: "yokai",
+    name: "Yokai",
+    evidences: ["スピボ", "DOTS", "ゴーストオーブ"],
+    forcedEvidences: [],
+    huntSanity: { base: 80, note: "ボイチャに反応して早ハントしやすい。" },
+    speeds: { base: "1.5〜1.7 m/s", detail: "速度標準。声に反応しやすい。" },
+    abilities: [
+      "近距離での会話・騒音で早めにハントを起こす。",
+      "ハント中、遠くの声はほぼ聞こえない。"
+    ],
+    tests: [
+      "高SAN帯でしゃべっている最中にだけハントが来る → Yokai候補。",
+      "ハント中に遠距離ボイチャで釣れないか試す。"
+    ],
+    tags: ["声トリガー", "高SANハント"]
+  },
+  {
+    id: "hantu",
+    name: "Hantu",
+    evidences: ["氷点下温度", "ゴーストオーブ", "指紋"],
+    forcedEvidences: ["氷点下温度"],
+    huntSanity: { base: 50, note: "標準。温度依存で速度変化。" },
+    speeds: { base: "1.4〜2.7 m/s", detail: "寒いほど速い。ブレーカーOFFで強い。" },
+    abilities: [
+      "室温が低いエリアで大きく加速する。",
+      "ブレーカーOFF時、ハント中に吐息が見えやすい。"
+    ],
+    tests: [
+      "ブレーカーOFFでハントさせ、冷えた廊下などで露骨に加速 → Hantu濃厚。",
+      "温度計で温度差を確認。"
+    ],
+    tags: ["温度依存速度", "強制証拠"]
+  },
+  {
+    id: "goryo",
+    name: "Goryo",
+    evidences: ["EMF Lv5", "DOTS", "指紋"],
+    forcedEvidences: ["DOTS"],
+    huntSanity: { base: 50, note: "標準。" },
+    speeds: { base: "~1.7 m/s", detail: "DOTS専用挙動あり。" },
+    abilities: [
+      "DOTSは基本的に“カメラ越し＋同室に人がいない”時のみ見える。",
+      "ローム範囲が狭め。あまり部屋を変えない。"
+    ],
+    tests: [
+      "同室だとDOTSが見えず、三脚カメラ越しだと安定して映る → Goryo本命。",
+      "ゴーストルームからあまり動かないかを見る。"
+    ],
+    tags: ["DOTS専用挙動", "強制証拠", "ローム少ない"]
+  },
+  {
+    id: "myling",
+    name: "Myling",
+    evidences: ["EMF Lv5", "ゴーストライティング", "指紋"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。" },
+    speeds: { base: "~1.7 m/s", detail: "ハント中の足音が小さい。" },
+    abilities: [
+      "パラボラマイクでの声・音が出やすい。",
+      "ハント中の足音が他ゴーストより静か。"
+    ],
+    tests: [
+      "パラボラで頻繁にノイズ／声を拾う。",
+      "ハント中、かなり近づかないと足音が聞こえにくい → Myling候補。"
+    ],
+    tags: ["静音足音", "パラボラ頻度"]
+  },
+  {
+    id: "onryo",
+    name: "Onryo",
+    evidences: ["スピボ", "ゴーストオーブ", "氷点下温度"],
+    forcedEvidences: [],
+    huntSanity: { base: 60, note: "火（ロウソク）が絡むと挙動変化。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。炎を嫌う。" },
+    abilities: [
+      "ロウソク / 焚き火などの“炎”でハントを抑制。",
+      "炎が3回消えると、それをトリガーにハントを起こしやすい。"
+    ],
+    tests: [
+      "ロウソクを部屋に多く置いた状態だとハントが極端に減る → Onryo疑い。",
+      "炎が消えた直後にだけハントが来るかを見る。"
+    ],
+    tags: ["炎トリガー", "早ハント"]
+  },
+  {
+    id: "the_twins",
+    name: "The Twins",
+    evidences: ["EMF Lv5", "スピボ", "氷点下温度"],
+    forcedEvidences: [],
+    huntSanity: { base: 50, note: "標準。2体分の干渉。" },
+    speeds: { base: "1.5 / 1.9 m/s", detail: "本体と分身で速度が違う。" },
+    abilities: [
+      "“本体”と“もう1体”が別々に干渉。離れた場所で同時に干渉が起こりやすい。",
+      "ハント時の移動速度が2パターンある。"
+    ],
+    tests: [
+      "全く違う場所でほぼ同時に干渉が起こる → Twins候補。",
+      "複数回ハントの足音速度を比べて、速い／遅いが混ざっていないか確認。"
+    ],
+    tags: ["二箇所干渉", "速度2パターン"]
+  },
+  {
+    id: "raiju",
+    name: "Raiju",
+    evidences: ["EMF Lv5", "DOTS", "ゴーストオーブ"],
+    forcedEvidences: [],
+    huntSanity: { base: 65, note: "電子機器周りで早ハント＆高速。" },
+    speeds: { base: "〜2.8 m/s", detail: "近くに電子機器が多いと大幅加速。" },
+    abilities: [
+      "近くに点いている電子機器が多いほど速度アップ。",
+      "機器を遠距離からでも妨害（EMPっぽい挙動）しやすい。"
+    ],
+    tests: [
+      "電子機器を周囲に置いた状態でハントさせると露骨に速い → Raiju濃厚。",
+      "機器を全部OFFにして速度が普通に戻るか確認。"
+    ],
+    tags: ["電子機器加速", "高SANハント"]
+  },
+  {
+    id: "obake",
+    name: "Obake",
+    evidences: ["EMF Lv5", "ゴーストオーブ", "指紋"],
+    forcedEvidences: ["指紋"],
+    huntSanity: { base: 50, note: "標準。指紋が特殊＆消えやすい。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。指紋・モデル変化が特徴。" },
+    abilities: [
+      "指紋が出ない判定が25%あり、そもそも付かないことが多い。",
+      "6本指・二重ライトスイッチなど、レア指紋パターンが存在。",
+      "ハント中の点滅でゴーストモデルが別の姿に変わることがある。"
+    ],
+    tests: [
+      "指紋が付いた場所で明らかに変な形（6本指／二重スイッチ）ならObakeほぼ確。",
+      "指紋の消えるタイミングが他より早いことがある。",
+      "長めのハントで点滅ごとにモデルがコロコロ変わるか観察。"
+    ],
+    tags: ["レア指紋", "指紋消失", "モデル変化", "強制証拠"]
+  },
+  {
+    id: "mimic",
+    name: "The Mimic",
+    evidences: ["スピボ", "氷点下温度", "指紋＋ゴーストオーブ"],
+    forcedEvidences: ["ゴーストオーブ"],
+    huntSanity: { base: 50, note: "模倣先ゴーストに依存。" },
+    speeds: { base: "可変", detail: "模倣しているゴーストの挙動に依存。" },
+    abilities: [
+      "他の任意のゴーストの挙動・能力を模倣する。",
+      "常に“偽オーブ”を伴う（4証拠持ち）。"
+    ],
+    tests: [
+      "証拠3つ出ているのにオーブがセットと噛み合わない → Mimic疑い。",
+      "挙動・速度・ハント閾値がコロコロ変わるように感じる場合も要注意。"
+    ],
+    tags: ["オーブ確定", "挙動ランダム", "4証拠"]
+  },
+  {
+    id: "moroi",
+    name: "Moroi",
+    evidences: ["スピボ", "ゴーストライティング", "氷点下温度"],
+    forcedEvidences: ["スピボ"],
+    huntSanity: { base: 50, note: "呪いでSAN減少を加速。" },
+    speeds: { base: "〜2.5 m/s", detail: "呪われたプレイヤーのSANが低いほど高速化。" },
+    abilities: [
+      "スピボ応答 or パラボラ囁きで対象プレイヤーを“呪い”、SAN減少を加速させる。",
+      "呪われたプレイヤーがいると、低SAN時にゲーム最速クラスの速度になる。"
+    ],
+    tests: [
+      "スピボ応答後、明らかにSANの減りが早い → Moroi候補。",
+      "終盤ハントが異常に速くなり、しかもスマッジの足止め時間が長い。"
+    ],
+    tags: ["SAN呪い", "高速化", "強制証拠"]
+  },
+  {
+    id: "deogen",
+    name: "Deogen",
+    evidences: ["スピボ", "ゴーストライティング", "DOTS"],
+    forcedEvidences: ["スピボ"],
+    huntSanity: { base: 40, note: "やや遅めハント開始。" },
+    speeds: { base: "3.0 / 0.4 m/s", detail: "遠距離で爆速、近づくと超鈍足。" },
+    abilities: [
+      "常にプレイヤー位置を正確に把握し、隠れても見つかる。",
+      "距離依存速度：離れていると速く、至近距離だと歩いて追いつかないほど遅い。",
+      "スピボで独特の荒い息・いびきのような応答が出る。"
+    ],
+    tests: [
+      "ハント中にあえて足元をぐるぐる回っても絶対に追いつかれない → Deogenほぼ確。",
+      "スピボで“息荒い”専用ボイスが出たらDeogen濃厚。"
+    ],
+    tags: ["距離依存速度", "位置把握", "強制証拠"]
+  },
+  {
+    id: "thaye",
+    name: "Thaye",
+    evidences: ["ゴーストライティング", "ゴーストオーブ", "DOTS"],
+    forcedEvidences: [],
+    huntSanity: { base: 75, note: "序盤75%からハント。時間経過で弱体化。" },
+    speeds: { base: "2.75→1.0 m/s", detail: "近くにいる時間が長いほど速度・ハント閾値が下がる。" },
+    abilities: [
+      "プレイヤーが近くにいる時間に応じて“老化”し、活動・速度・ハントSANが段階的に低下。",
+      "序盤は最凶クラス、終盤は雑魚化する。"
+    ],
+    tests: [
+      "開幕すぐ高SANでハント→ その後どんどん大人しく遅くなる → Thaye本命。",
+      "同じ部屋に長時間居座って、ハント間隔・速度の変化を見る。"
+    ],
+    tags: ["早ハント", "時間で弱体化"]
+  },
+  {
+    id: "shade",
+    name: "Shade",
+    evidences: ["EMF Lv5", "ゴーストライティング", "氷点下温度"],
+    forcedEvidences: [],
+    huntSanity: { base: 35, note: "プレイヤー近くではほぼハントしない。" },
+    speeds: { base: "~1.7 m/s", detail: "速度標準。極端に消極的。" },
+    abilities: [
+      "プレイヤーが近くにいるとイベント・ハントをほぼ起こさない。",
+      "活動量が全体的に低く、“つまらないゴースト”になりがち。"
+    ],
+    tests: [
+      "ずっと同室に居てもイベントほぼ無し＆ハントも来ない → Shade濃厚。",
+      "部屋から離れたタイミングでだけハント・イベントが増えるか確認。"
+    ],
+    tags: ["超受け身", "低SANハント"]
+  }
+];
